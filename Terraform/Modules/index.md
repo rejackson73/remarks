@@ -33,22 +33,22 @@ name: The Sandwich Method
 # The Parts of a Sandwich
 What is needed for the best sandwich?
 <br>
-![:scale 100%](images/Sandwich.jpg)
+.center[![:scale 50%](images/Sandwich.jpg)]
 ???
 We're going to talk about modules in this section, but first let's talk about food.  I love food.  Sometimes too much.  Sandwiches are awesome, but what makes a sandwich?  Ask for parts of a sandwich and write them down.  Bread?  Nope, we have to start with wheat, grind the wheat down, add water.  Get down to the fundamental based of the ingredients.
 
 ---
 name: Core Ingredients
 # The Real Parts of a Sandwich
-.left-column[
+.left-side[
     * Flour
     * Sweetener
     * Seeds
     * Salt
     * Yeast
 ]
-.right-column [
-![:scale 100%](images/Bread.jpg)
+.right-side[
+![:scale 60%](images/Bread.jpg)
 ]
 ???
 If we really had to start with the base ingredients for a sandwich, we would probably all starve!
@@ -141,8 +141,23 @@ here are some screen captures for the configuration designer, all through the Pr
 name: Configuration Designer - 3
 #  Configuration Designer
 Images of Configuration Designer Code Creation
-![:scale 80%](images/ConfigurationDesigner3.png)
+.center[![:scale 80%](images/ConfigurationDesigner3.png)]
 
 
 ???
 Ultimately you'll end up with your terraform output that you can use to create your own workspace and infrastructure.  Several large companies are doing this to make it easier to self service infrastructure.
+
+---
+name: Terraform Modules Summary
+#  With Terraform Modules you can...
+* Enable users to create what they need rapidly and easily
+* Set boundaries around infrastructure to be deployed
+
+Ultimately increasing agility while reducing risk and cost.
+
+
+???
+So, with Terraform Modules
+Your users are able to create what they need, within your boundaries, rapidly without any custom scripting or point and click madness
+One of the keys, is that you set the boundaries, reducing the risk not only in the parameters around that infrastructure, but you’re also dealing with known entities.
+And what you end up with is a fast and controlled system that drastically reduces the cost incurred in over provisioning and waiting on the process.
