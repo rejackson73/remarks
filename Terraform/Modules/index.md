@@ -29,6 +29,31 @@ name: terraform-slides-link
 Here is a link to the slides so you can follow along, but please don't look ahead!
 
 ---
+name: The Sandwich Method
+# The Parts of a Sandwich
+What is needed for the best sandwich?
+<br>
+![:scale 100%](images/Sandwich.jpg)
+???
+We're going to talk about modules in this section, but first let's talk about food.  I love food.  Sometimes too much.  Sandwiches are awesome, but what makes a sandwich?  Ask for parts of a sandwich and write them down.  Bread?  Nope, we have to start with wheat, grind the wheat down, add water.  Get down to the fundamental based of the ingredients.
+
+---
+name: Core Ingredients
+# The Real Parts of a Sandwich
+.left-column[
+    * Flour
+    * Sweetener
+    * Seeds
+    * Salt
+    * Yeast
+]
+.right-column [
+![:scale 100%](images/Bread.jpg)
+]
+???
+If we really had to start with the base ingredients for a sandwich, we would probably all starve!
+
+---
 name: What is a Module
 # What is a Module
 Within programming, large, complex programs are broken out in to functions and reusable libraries.
@@ -36,7 +61,7 @@ Within programming, large, complex programs are broken out in to functions and r
 Infrastructure should be structured similarly, with reusable Modules.
 ![:scale 100%](images/ProgramFunctionCalls.png)
 ???
-Modules in Terraform Infrastructure are very similar to functions or subroutines in programming languages.  Self contained packages of Terraform code that can be reused across multiple workspaces.
+Now think about Modules and your sandwich, or really any programming or problem analysis.  Modules allow you to reuse pieces that have already been designed and assembled.  Self contained packages of Terraform code that can be applied across multiple workspaces.
 
 ---
 name: What is a Module - 2
@@ -116,7 +141,7 @@ here are some screen captures for the configuration designer, all through the Pr
 name: Configuration Designer - 3
 #  Configuration Designer
 Images of Configuration Designer Code Creation
-![:scale 80%](images/ConfigurationDesigner3.png)]
+![:scale 80%](images/ConfigurationDesigner3.png)
 
 
 ???
