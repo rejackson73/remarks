@@ -24,7 +24,7 @@ layout: true
 name: terraform-slides-link
 # The Slide Show
 ## You can follow along on your own computer at this link:
-### tbd
+### https://git.io/JeyeD
 
 ???
 Here is a link to the slides so you can follow along, but please don't look ahead!
