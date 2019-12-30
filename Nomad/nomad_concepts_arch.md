@@ -4,7 +4,7 @@ background-image: url(https://hashicorp.github.io/field-workshops-assets/assets/
 count: false
 
 # HashiCorp Nomad
-## Advanced Concepts and Architecture
+## Concepts and Architecture
 
 ![:scale 15%](https://hashicorp.github.io/field-workshops-assets/assets/logos/logo_nomad.png)
 
@@ -20,6 +20,8 @@ layout: true
 ]
 
 ---
+exclude: true
+
 name: slides-link
 # The Slide Show
 ## You can follow along on your own computer at this link:
@@ -32,6 +34,8 @@ Hidden:  Custom diagrams can be found at Lucidchart
 https://www.lucidchart.com/documents/edit/6cf954c6-16e9-4827-9d74-98417ba74444/0_0?beaconFlowId=D0003F1058D413A2
 
 ---
+exclude: true
+
 name:  Section Prerequisites
 # Prerequisites
 This deck assumes the following of the audience:
@@ -43,14 +47,13 @@ This deck assumes the following of the audience:
 This slide deck focuses on the concepts and architecture of Nomad.  Therefore the audience should have some basic understanding of the Nomad applications.
 
 ---
-name:  High level Nomad Review
-# Nomad Review
-Let's review a few high level concepts about Nomad:
+name:  What Is Nomad
+# What is Nomad
 .smaller[
-* Nomad is a flexible, lightweight, performance, easy to use orchestrator
-* Nomad is used to deploy and manage containers and legacy applications simultaneously
-* Nomad works across data centers and cloud platforms, providing universal scheduling
-* Nomad manages services, batch functions, as well as global system services
+* A flexible, lightweight, high performing, easy to use orchestrator
+* Used to deploy and manage containers and legacy applications simultaneously
+* Works across data centers and cloud platforms, providing universal scheduling
+* Manages services, batch functions, as well as global system services
 ]
 
 ???
@@ -62,25 +65,41 @@ name:  Common Nomad Terms
 Let's review some terms and definitions regarding Nomad
 
 .smaller[
-* Nomad clusters consist of nodes running the Nomad binary, both Servers and Clients
-* Servers provide the intelligence (scheduling, allocation) to the cluster
-* Clients run the Nomad agent which registers with the server and executes local tasks.
-* Jobs are submitted by users and represent the desired state of the associated workloads
-* Drivers are used by Nomad to execute tasks (i.e., Docker, QEMU, Java, etc.)
-* Tasks are the smallest unit of work executed by task drivers
+* Nomad .bold[Clusters] consist of nodes running the Nomad binary, both Servers and Clients
+* .bold[Servers] provide the intelligence (scheduling, allocation) to the cluster
+* .bold[Clients] run the Nomad agent which registers with the server and executes local tasks.
+* .bold[Jobs] are submitted by users and represent the desired state of the associated workloads
+* .bold[Drivers] are used by Nomad to execute tasks (i.e., Docker, Exec, Java, etc.)
+* .bold[Tasks] are the smallest unit of work executed by task drivers
 ]
 
 ???
-Nomad operates as clusters of nodes, with anywhere from 3-5 server nodes, and an unconstrained number of client nodes.  All nodes run the same Nomad binary.  The Nomad server nodes provide the brains and intelligence to the cluster, performing all scheduling and allocations, while the clients execute the tasks as directed by the server cluster. Jobs are used to describe the desired state of the workloads.  This is what the servers and clients work towards.  Nomad also offers several drivers to help execute the defined tasks, getting the defined workloads into the desired state.
+Nomad operates as clusters of nodes, with anywhere from 3-5 server nodes, and an unconstrained number of client nodes.  All nodes run the same Nomad binary.  The Nomad server nodes provide the brains and intelligence to the cluster, performing all scheduling and allocations, while the clients execute the tasks as directed by the server cluster. Jobs are used to describe the desired state of the workloads.  This is what the servers and clients work towards.  Nomad also offers drivers for docker containers, java apps, and arbitrary executables to help execute the defined tasks, getting the defined workloads into the desired state.
+
+---
+name:  More Nomad Terms
+# Nomad Terms (part 2)
+
+.smaller[
+* .bold[Task Groups] are groups of tasks (shocking) that must run together (can not be split across clients)
+* .bold[Allocations] are created by Nomad servers to map tasks, task groups, and jobs to client machines
+* Nomad performs .bold[Evaluations] whenever jobs or client states change to determine if allocations must be adjusted
+* Nomad maximizes resource utilization with a highly efficient .bold[Bin Packing] algorithm
+* .bold[Data Centers] are physical or logical groups of compute resources typically defined by cloud service providers
+* .bold[Regions] are Nomad logical constructs that may consist of multiple data centers enabling federation across client pools.
+]
+
+???
+As we discuss Nomad, there are other concepts and terms to be aware of.  Task Groups are groups of tasks, as crazy as that may sound.  What is important here is that the task groups must be run together, often colocated on the same client, which may be required for various architectural reasons.  Nomad's main job is to perform Allocations, mapping tasks, task groups, and jobs to various client resources.  These allocations are adjusted based on Nomad Evaluations that are performed whenever balance within the system is disrupted, either through adjustments to the job, and/or changes to the client availability. As evaluations and allocations are performed, Nomad uses a highly efficient bin packing algorithm to ensure that resource utilization is maximized across the client cluster.  That cluster can consist of client nodes residing within a traditional data center, or across multiple data centers defined as a Nomad region.  Utilizing regions enables service federation across multiple cloud providers or geographic areas without replicating data across all regions.
 
 ---
 Name:  Nomad Layout and Comms
 # Nomad Communications
 .left-side[
 * 3-5 Server Nodes
-* Server Leaders Replicate to Followers
-* Server Followers Send Request and Allocations to Server
-* Clients Communicate with Servers over RPC
+* The Leader Replicates to Followers
+* Followers forward Allocations, Client Data, and Requests to Leader
+* Clients Communicate with all Servers over RPC
 ]
 .right-side[
     ![:scale 60%](https://www.nomadproject.io/assets/images/nomad-architecture-region-a5b20915.png)
@@ -90,32 +109,49 @@ Name:  Nomad Layout and Comms
 Let's jump right in with the communications among the Nomad nodes.  Within the Server Cluster, we have a Leader, and we have Followers.  The Leaders are elected via quorum (which is why it is important to have 3-5 nodes) using the Consensus, based on RAFT.  The Leader of the servers makes all allocation decisions, and distributes to Followers.  Clients pull allocation and task assignments via RPC from each Server.
 
 ---
-Name:  Nomad Scheduler
-# Nomad Scheduler Initiation
+Name:  Nomad Evaluation
+# Nomad Scheduler Initiation - Evaluations
 .left-side[
-An Evaluation is "Kicked Off"
+An Evaluation is "Kicked Off" whenever ANY of the following occur
 .smaller[
-* New Job
-* Job Update
+* New Job Created
+* Job Updated or Modified
 * Job or Node Failure
 ]
-An Evaluation can be sent to any of the Server nodes, but eventually they all make it to the Evaluation broker that resides on the leader.  Until queued, the evaluation is in 'pending' state
 ]
 .right-side[
-    ![:scale 60%](images/Nomad_Evalation_Kickoff.png)
+    ![:scale 50%](images/Nomad_eval_alloc.png)
 ]
 
 ???
-Everything starts with something, regardless of your technical, moral, or spiritual beleifs.  With Nomad, we deal witih Evaluations to determine if any work is necessary.  What kicks off that evaluation can be a new job definition, and updated job definition, or some change to the infrastructure.
+Everything starts with something, regardless of your technical, moral, or spiritual beleifs.  With Nomad, we deal witih Evaluations to determine if any work is necessary.  What kicks off that evaluation can be a new job definition, and updated job definition, or some change to the infrastructure.  If necessary, a new Allocation maps tasks or task groups within jobs, to the available nodes
+
+---
+Name:  Nomad Scheduler
+# Nomad Scheduler Initiation
+.left-side[
+
+.smaller[
+* Regardless of how the Evalution is initiated, the evaluation can be sent to any of the server nodes.
+* All Evaluations are forwarded to the Evaluation Broker on the Leader
+* Evaluation remains in 'pending' state until the Leader queues the process
+]
+]
+.right-side[
+    ![:scale 60%](images/Nomad_Evaluation_Kickoff.png)
+]
+
+???
+A new job, a modified or updated job, or any change in the system (job or node failure) will cause an evaluation to kick off.  Regardless of how that's done, any of the server nodes can receive the evaluation request.  All evaluations are forwarded to a dedicated process on the Leader, called the evaluation broker.  Until the Evaluation broker can determine if an allocation is necessary, the evaluation remains in 'pending' state.
 
 
 ---
 name:  Nomad Evaluation
 # Nomad Evaluation
 .left-side[
-Once the Evaluation Broker recieves the evaluations, the Broker queues the changes in order based on prirority.
+Once the Evaluation Broker recieves the Evaluations, the Broker queues the changes in order based on priority.
 
-Scheduler on Follower Nodes pick off the queue and start planning!
+Scheduler on Follower Nodes pick the Evaluations off the queue and start planning!
 ]
 .right-side[
     ![:scale 60%](images/Evaluation_Queue.png)
@@ -125,10 +161,10 @@ Scheduler on Follower Nodes pick off the queue and start planning!
 We're talking about Evaluation, not Evolution. Here the evaluation Broker, residing on the leader node, manages the queue of pending evaluations.  Priority is determined based on Job definition, and the Broker ensures that somebody picks up the evaluation for processing.  Once the evaluation is picked up by a Scheduler, the planning begins!
 
 ---
-Name:  Scheduler Function
+Name:  Scheduling Workers
 # Scheduler Operations
 
-All Servers run Scheduling Functions
+All Servers run Scheduling Workers
 * One Scheduler per CPU core by default
 * Four Default Schedulers Available
     * Service Scheduler optimized for long-lived services
@@ -161,8 +197,8 @@ Back to the leader now...
 .smaller.left-side[
 5.  Evaluate all submitted allocation plans
 6.  Accept, reject, or partially reject the plan
-7.  Return response to Scheduler for implementation, reschedule, or terminate
-8.  Scheduler Updates status of evaluation and confirms with Evaluation Broker
+7.  Return response to Scheduler for implementation, rescheduling, or termination
+8.  Scheduler updates status of evaluation and confirms with Evaluation Broker
 9.  Clients pick up allocation changes and act!
 ]
 .right-side[
@@ -182,23 +218,89 @@ Name:  End to End Flow
 ---
 Name:  A Focus on Priority
 # Let's Talk Priority
-Priority Processed During Evaluation and Planning
-
+Every Scheduler, Planner, Program Managear, deals with struggling priorities.
+.bold[Nomad] is no different - Priority is processed during evaluation and planning
+.smaller[
+* Every job has an associated Priority
+* Priority ranges from 1-100 - higher number = higher priority
+]
 What if higher priority jobs are scheduled?
 
-.larger[PREEMPTION]
+.larger.bold[PREEMPTION]
 
 ???
-We all struggle with priority.  How does Nomad deal with the inevitable situation where a higher priority job is scheduled and resources are limited?  Preemption!
+We all struggle with priority.  Nomad supports priority configuration with every Job, from 1 to 100.  The higher the number, the higher the priority.  How does Nomad deal with the inevitable situation where a higher priority job is scheduled and resources are limited?  Preemption!
+
 ---
 Name:  Preemption
 # Preemption
 
-Preemption allows Nomad to ensure higher priority (based on Job definition) are scheduled first.
+Preemption allows Nomad to adjust resource allocations based on Job priority.
 
+.left-side[
 .smaller[
-* Occurs only when resources are constrained
-* Only jobs with a priority delta > 10 evaluated
-* Lowest priority jobs evicted first
+Without Preemption
+* Jobs and tasks are allocated first come - first served
+* Pending Evaluations not allocated until resources available
+]
+]
+
+.right-side[
+.smaller[
+With Preemption
+* Evaluations performed regardless of resource availability
+* Lowest priority jobs evicted if necessary
 * Output of 'Plan' identifies any preemptive actions
 ]
+]
+
+???
+Without any sort of preemption, jobs are evaluated and allocated as they are delivered to the evaluation broker.  If resources aren't avialable, any evaluations will be stuck in pending state until resources become available.  With preemption, Nomad continues to perform the evaluations and will evict lowest priority jobs if necessary.  Every 'plan' that is executed highlights any preemption actions necessary.
+
+---
+Name:  How Preemption Works
+# Preemption Details
+
+Need to add the System Alerting allocation, but there's no room!
+
+.left-side[
+  ![:scale 60%](images/SystemAlerting.png)
+]
+.right-side[
+  ![:scale 100%](images/FullCluster.png)
+]
+
+???
+Let's run through a quick example of how preemption works.  Here we have a Nomad cluster with a few allocations in an analytics solution.  Allocations are all happy, and now we have a new job added to the system for System Alerting.  We have enough CPU, and plenty of Hard Drive, but we are at the memory limit.  No room at the inn for our System Alerting process.  Without Preemption, that's where we would stop. But we have preemption, so we'll continue
+
+---
+Name:  How Preemption Works 2
+# Preemption Details 2
+
+One of the Business Reporting allocations needs to go!
+.left-side[
+  ![:scale 100%](images/EvictBusinessAlert1.png)
+]
+.right-side[
+  ![:scale 100%](images/AddSystemAlert1.png)
+]
+
+???
+With Preemption, Nomad realizes that there are lower priority allocations that can be evicted.  So if we are adding one System Alerting job, we evict one Business Reporting Job.  The Business Reporting job has the lowest priority, so it gets evicted first.  But what happens if we have to add two more System Alerting allocations?
+
+---
+Name:  How Preemption Works 3
+# Preemption Details 3
+
+More System Alerting means more eviction. Log Collection isn't a candidate - priority delta < 10
+
+.left-side[
+  ![:scale 100%](images/EvictBusinessAlert2.png)
+]
+.right-side[
+  ![:scale 100%](images/AddSystemAlert2.png)
+]
+
+
+???
+If we add two more Sytem Alerting allocations, we need to bump a Batch Analytics Allocation as well. Evicting the Log Collection allocation would be sufficient, however, the Batch Analytics Allocation has a lower priority.  Additionally, as the priority difference between System Alerting and Log Collection is less than 10, the Log Collection allocation isn't a candidate for preemption with respect to System Alerting.
