@@ -165,7 +165,7 @@ Name:  Nomad Layout and Comms
 * Clients Communicate with all Servers over RPC
 ]
 .right-side[
-    ![:scale 60%](https://www.nomadproject.io/assets/images/nomad-architecture-region-a5b20915.png)
+![:scale 100%](https://www.nomadproject.io/assets/images/nomad-architecture-region-a5b20915.png)
 ]
 
 ???
