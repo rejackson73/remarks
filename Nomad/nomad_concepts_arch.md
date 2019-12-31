@@ -93,6 +93,69 @@ name:  More Nomad Terms
 As we discuss Nomad, there are other concepts and terms to be aware of.  Task Groups are groups of tasks, as crazy as that may sound.  What is important here is that the task groups must be run together, often colocated on the same client, which may be required for various architectural reasons.  Nomad's main job is to perform Allocations, mapping tasks, task groups, and jobs to various client resources.  These allocations are adjusted based on Nomad Evaluations that are performed whenever balance within the system is disrupted, either through adjustments to the job, and/or changes to the client availability. As evaluations and allocations are performed, Nomad uses a highly efficient bin packing algorithm to ensure that resource utilization is maximized across the client cluster.  That cluster can consist of client nodes residing within a traditional data center, or across multiple data centers defined as a Nomad region.  Utilizing regions enables service federation across multiple cloud providers or geographic areas without replicating data across all regions.
 
 ---
+name:  Deployment Architecture
+# Typical Deployment Architecture
+
+.smaller[
+* Single binary provides both Client and Server function
+* 3-5 Servers per Nomad Cluster
+* Servers elect 'Leader' to manage priorities, evaluations, and allocations
+* Clusters can transcend Data Centers
+]
+.center[![:scale 80%](images/NomadRegion.png)]
+
+???
+Nomad utilizes a single binary application that can be run as a client or server.  It is recommended that the server cluster utilize 3-5 server nodes.  The servers communicate via the Gossip protocol, and use Consensus protocol to elect a leader.  A single cluster of servers operate in a single region, which may consist of one or more data centers.
+
+---
+name:  Nomad Server Leader Election
+# Server Cluster Initialization
+
+.smaller.left-side[
+* Servers race to claim candidacy
+* Server 2 announced first, asked for vote
+* Server 1 heard server 2 first, and voted
+* Server 3 lost, becomes follower
+* 3 Servers sustains 1 Failure, 5 servers sustains 2 failures
+]
+.right-side[
+![:scale 100%](images/ServerElection.png)
+]
+
+???
+When servers initialize, they need to find eachother and create a leader.  A server will promote itself as a candidate to be a leader, and notify the other servers in the cluster.  Once the candidate has a quorum of votes, it will promote itself as the leader.  With 3 server nodes, the cluster can sustain a single failure.  With 5 server nodes, the cluster can sustain two failures.  Note that as you increase server members, it will take longer for the consensus protocol to converge and elect a leader.
+
+---
+name:  Multi-region Federation
+# Operating Across Regions
+
+.smaller[
+* Cluster can Operate Across Regions
+* Synchronizes ACLs, Policies, Sentinel Policies
+* Application/State Data NOT Shared
+]
+
+.center[![:scale 80%](images/Multi-Region.png)]
+
+???
+Clusters can operate across regions using WAN Gossip. Only ACL, Policies, and Sentinel Policies are shared across regions (no application data).
+
+---
+name:  Multi-region Federation
+# Region Server Failure
+
+.smaller[
+* In case of Failure, clients can access servers in another region
+* Servers must be discoverable
+* Requires RPC and Raft across Regions
+]
+
+.center[![:scale 80%](images/Failed-Region.png)]
+
+???
+If the server cluster in one region goes down completely, the server cluster in another region can facilitate management.  This multi-region federation requires RPC and Serf support across regions.
+
+---
 Name:  Nomad Layout and Comms
 # Nomad Communications
 .left-side[
@@ -107,6 +170,43 @@ Name:  Nomad Layout and Comms
 
 ???
 Let's jump right in with the communications among the Nomad nodes.  Within the Server Cluster, we have a Leader, and we have Followers.  The Leaders are elected via quorum (which is why it is important to have 3-5 nodes) using the Consensus, based on RAFT.  The Leader of the servers makes all allocation decisions, and distributes to Followers.  Clients pull allocation and task assignments via RPC from each Server.
+
+---
+name:  Nomad transaction management
+# Client Transaction Flow
+
+Working
+
+???
+As the clients communicate with the servers, transactions are shared across all servers within the cluster.  The transactions are durable, meaning at least a majority of servers need to acknowledge the transaction before a response is sent back to the client.
+
+
+
+---
+name:  Client Initialization and Discovery
+# Nomad Node Discovery
+Nomad...
+* Servers must be accessible - IP, FQDN, or Discovery
+* Clients must reach servers - IP, FQDN, or Discovery
+* Regions must reach other Regions for Federation
+
+Through IP Address, FQDN, or Discovery
+
+???
+As Clients are initialized, they reach out to the configured servers, either by IP address, FQDN, or preferrably through some service discovery (Consul).
+
+---
+name:  Nomad with Consul
+# Nomad with Consul Discovery
+
+working
+
+???
+
+---
+Name:  Nomad Scheduler Section
+# Nomad Scheduler Processes
+## Evaluations, Allocations, Priorities, and Preemption
 
 ---
 Name:  Nomad Evaluation
@@ -304,3 +404,62 @@ More System Alerting means more eviction. Log Collection isn't a candidate - pri
 
 ???
 If we add two more Sytem Alerting allocations, we need to bump a Batch Analytics Allocation as well. Evicting the Log Collection allocation would be sufficient, however, the Batch Analytics Allocation has a lower priority.  Additionally, as the priority difference between System Alerting and Log Collection is less than 10, the Log Collection allocation isn't a candidate for preemption with respect to System Alerting.
+
+
+
+
+
+
+---
+???
+
+Nomad doeas a lot for auotmatic discovery of servers, and client discovery of servers.  OThere are no strict requirements on the saervers coming or going, so if a server fails it can be replaced without much effort.  Wouldn't it be nice if the new server could be auto discovered, and auto discover, the cluster using Consul service discovery?
+
+
+If an entire region level server cluster fails, clients can still submit jobs to another region - multi-region federation
+
+Servers can be manually join in a cluster, once one of the servers is up and ready (bootstrapped)
+
+Bootstrap the cluster using Consul - also get service availabilty through consul
+
+Federation
+Need RPC and Serf across regions
+Join the servers by pointing to another region - another good use for Consul
+Once regions are joined, Gossip enables discovery of other servers
+
+
+---
+???
+
+Clusters have 3-5 server nodes, required for consensus protocol to identify a server.  Leader elected by server nodes through consensus, using Raft.  3 Server nodes can sustain a single failure.  5 Server nodes can sustain two failures.
+
+Transactions recorded at the server are durable - written to majority of servers before acknowledged.
+
+Each Cluster belongs in region, although a region could cross multiple data centers.
+
+Servers in each region are part of a single consensus group, so there is an elected leader in that group.
+consensus provides leader election and durable state replication
+
+Servers participate in Gossip protocol for discovery.  Within a single region, Servers use Gossip to discover eachother and participate in Consensus
+Gossip does simple clustering and multi-region federation
+
+
+when an agent initializes, it reaches out to the configured servers, either address, FQDN, or preferrably using Consul service discovery
+Nomad with Consul
+Nomad doeas a lot for auotmatic discovery of servers, and client discovery of servers.  OThere are no strict requirements on the saervers coming or going, so if a server fails it can be replaced without much effort.  Wouldn't it be nice if the new server could be auto discovered, and auto discover, the cluster using Consul service discovery?
+
+ACL tokens, policies, and Sentinel policies are shared among regions.  Data is not shared across regions
+
+If an entire region level server cluster fails, clients can still submit jobs to another region - multi-region federation
+
+Servers can be manually join in a cluster, once one of the servers is up and ready (bootstrapped)
+
+Bootstrap the cluster using Consul - also get service availabilty through consul
+
+Federation
+Need RPC and Serf across regions
+Join the servers by pointing to another region - another good use for Consul
+Once regions are joined, Gossip enables discovery of other servers
+
+
+
