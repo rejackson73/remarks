@@ -62,35 +62,35 @@ Nomad runs as a single binary in just about any environment, making it one of th
 ---
 name:  Common Nomad Terms
 # Nomad Terms
-Let's review some terms and definitions regarding Nomad
 
 .smaller[
-* Nomad .bold[Clusters] consist of nodes running the Nomad binary, both Servers and Clients
+* Nomad .bold[Clusters] consist of nodes running the Nomad binary, both Servers and Clients, in a single region
 * .bold[Servers] provide the intelligence (scheduling, allocation) to the cluster
-* .bold[Clients] run the Nomad agent which registers with the server and executes local tasks.
+* .bold[Clients] register with the servers and execute scheduled tasks.
 * .bold[Jobs] are submitted by users and represent the desired state of the associated workloads
 * .bold[Drivers] are used by Nomad to execute tasks (i.e., Docker, Exec, Java, etc.)
-* .bold[Tasks] are the smallest unit of work executed by task drivers
+* .bold[Tasks] are the smallest unit of work executed by drivers
+* .bold[Task Groups] are groups of tasks (shocking) that must run together (cannot be split across clients)
 ]
 
 ???
-Nomad operates as clusters of nodes, with anywhere from 3-5 server nodes, and an unconstrained number of client nodes.  All nodes run the same Nomad binary.  The Nomad server nodes provide the brains and intelligence to the cluster, performing all scheduling and allocations, while the clients execute the tasks as directed by the server cluster. Jobs are used to describe the desired state of the workloads.  This is what the servers and clients work towards.  Nomad also offers drivers for docker containers, java apps, and arbitrary executables to help execute the defined tasks, getting the defined workloads into the desired state.
+Nomad operates as clusters of nodes, with anywhere from 3-5 server nodes, and an unconstrained number of client nodes.  All nodes run the same Nomad binary.  The Nomad server nodes provide the brains and intelligence to the cluster, performing all scheduling and allocations, while the clients execute the tasks as directed by the server cluster. Jobs are used to describe the desired state of the workloads.  This is what the servers and clients work towards.  Nomad also offers drivers for docker containers, java apps, and arbitrary executables to help execute the defined tasks, getting the defined workloads into the desired state.  Task Groups are groups of tasks, as crazy as that may sound.  What is important here is that the task groups must be run together, often colocated on the same client, which may be required for various architectural reasons.
 
 ---
 name:  More Nomad Terms
 # Nomad Terms (part 2)
 
 .smaller[
-* .bold[Task Groups] are groups of tasks (shocking) that must run together (can not be split across clients)
-* .bold[Allocations] are created by Nomad servers to map tasks, task groups, and jobs to client machines
+* .bold[Allocations] map the tasks and task groups within jobs to client nodes
 * Nomad performs .bold[Evaluations] whenever jobs or client states change to determine if allocations must be adjusted
 * Nomad maximizes resource utilization with a highly efficient .bold[Bin Packing] algorithm
-* .bold[Data Centers] are physical or logical groups of compute resources typically defined by cloud service providers
-* .bold[Regions] are Nomad logical constructs that may consist of multiple data centers enabling federation across client pools.
+* .bold[Datacenters] are physical or logical groups of compute resources typically defined by cloud service providers
+* .bold[Regions] are Nomad logical constructs that may consist of multiple datacenters, and contain one Nomad cluster
+* Multiple Nomad Regions can be .bold[Federated] together
 ]
 
 ???
-As we discuss Nomad, there are other concepts and terms to be aware of.  Task Groups are groups of tasks, as crazy as that may sound.  What is important here is that the task groups must be run together, often colocated on the same client, which may be required for various architectural reasons.  Nomad's main job is to perform Allocations, mapping tasks, task groups, and jobs to various client resources.  These allocations are adjusted based on Nomad Evaluations that are performed whenever balance within the system is disrupted, either through adjustments to the job, and/or changes to the client availability. As evaluations and allocations are performed, Nomad uses a highly efficient bin packing algorithm to ensure that resource utilization is maximized across the client cluster.  That cluster can consist of client nodes residing within a traditional data center, or across multiple data centers defined as a Nomad region.  Utilizing regions enables service federation across multiple cloud providers or geographic areas without replicating data across all regions.
+As we discuss Nomad, there are other concepts and terms to be aware of. Nomad's main job is to perform Allocations, mapping tasks, task groups, and jobs to various client resources.  These allocations are adjusted based on Nomad Evaluations that are performed whenever balance within the system is disrupted, either through adjustments to the job, and/or changes to the client availability. As evaluations and allocations are performed, Nomad uses a highly efficient bin packing algorithm to ensure that resource utilization is maximized across the client cluster.  That cluster can consist of client nodes residing within a traditional datacenter, or across multipledata centers defined as a Nomad region.  Nomad Regions and be federated together enabling wider communication without replicating data across all regions.
 
 ---
 name:  Deployment Architecture
@@ -108,19 +108,21 @@ name:  Deployment Architecture
 Nomad utilizes a single binary application that can be run as a client or server.  It is recommended that the server cluster utilize 3-5 server nodes.  The servers communicate via the Gossip protocol, and use Consensus protocol to elect a leader.  A single cluster of servers operate in a single region, which may consist of one or more data centers.
 
 ---
-name:  Nomad Server Leader Election
-# Server Cluster Initialization
-
+name:  Nomad Cluster Leader Election and Viability
+# Cluster Leader Election and Viability
 .smaller.left-side[
 * Servers race to claim candidacy
 * Server 2 announced first, asked for vote
-* Server 1 heard server 2 first, and voted
+* Server 1 heard server 2 first, and voted for server 2
 * Server 3 lost, becomes follower
-* 3 Servers sustains 1 Failure, 5 servers sustains 2 failures
+* Server 1 becomes the elected leader of the region
 ]
 .right-side[
 ![:scale 100%](images/ServerElection.png)
 ]
+
+.smaller.center[Note:  3 Servers can sustain 1 Failure, 5 servers can sustain 2 failures]
+
 
 ???
 When servers initialize, they need to find eachother and create a leader.  A server will promote itself as a candidate to be a leader, and notify the other servers in the cluster.  Once the candidate has a quorum of votes, it will promote itself as the leader.  With 3 server nodes, the cluster can sustain a single failure.  With 5 server nodes, the cluster can sustain two failures.  Note that as you increase server members, it will take longer for the consensus protocol to converge and elect a leader.
@@ -130,9 +132,9 @@ name:  Multi-region Federation
 # Operating Across Regions
 
 .smaller[
-* Cluster can Operate Across Regions
-* Synchronizes ACLs, Policies, Sentinel Policies
-* Application/State Data NOT Shared
+* Multiple Nomad Regions can be Federated Together
+* Jobs are submitted within region, and can be submitted across regions
+* ACL Tokens, Policies, and Sentinel Policies are shared across regions - Application/State Data NOT Shared
 ]
 
 .center[![:scale 80%](images/Multi-Region.png)]
@@ -145,7 +147,7 @@ name:  Multi-region Federation
 # Region Server Failure
 
 .smaller[
-* In case of Failure, clients can access servers in another region
+* If all servers in a region fail, clients can access servers in a federated region
 * Servers must be discoverable
 * Requires RPC and Raft across Regions
 ]
@@ -161,7 +163,8 @@ Name:  Nomad Layout and Comms
 .left-side[
 * 3-5 Server Nodes
 * The Leader Replicates to Followers
-* Followers forward Allocations, Client Data, and Requests to Leader
+* Followers forward Client Data and Requests to Leader
+* Servers send Allocations to clients
 * Clients Communicate with all Servers over RPC
 ]
 .right-side[
@@ -172,41 +175,15 @@ Name:  Nomad Layout and Comms
 Let's jump right in with the communications among the Nomad nodes.  Within the Server Cluster, we have a Leader, and we have Followers.  The Leaders are elected via quorum (which is why it is important to have 3-5 nodes) using the Consensus, based on RAFT.  The Leader of the servers makes all allocation decisions, and distributes to Followers.  Clients pull allocation and task assignments via RPC from each Server.
 
 ---
-name:  Nomad transaction management
-# Client Transaction Flow
+name: Nomad Scheduler Section
+class: title, shelf, no-footer, fullbleed
+background-image: url(https://hashicorp.github.io/field-workshops-assets/assets/bkgs/HashiCorp-Title-bkg.jpeg)
+count: false
 
-Working
-
-???
-As the clients communicate with the servers, transactions are shared across all servers within the cluster.  The transactions are durable, meaning at least a majority of servers need to acknowledge the transaction before a response is sent back to the client.
-
-
-
----
-name:  Client Initialization and Discovery
-# Nomad Node Discovery
-Nomad...
-* Servers must be accessible - IP, FQDN, or Discovery
-* Clients must reach servers - IP, FQDN, or Discovery
-* Regions must reach other Regions for Federation
-
-Through IP Address, FQDN, or Discovery
-
-???
-As Clients are initialized, they reach out to the configured servers, either by IP address, FQDN, or preferrably through some service discovery (Consul).
-
----
-name:  Nomad with Consul
-# Nomad with Consul Discovery
-
-working
-
-???
-
----
-Name:  Nomad Scheduler Section
 # Nomad Scheduler Processes
 ## Evaluations, Allocations, Priorities, and Preemption
+
+![:scale 15%](https://hashicorp.github.io/field-workshops-assets/assets/logos/logo_nomad.png)
 
 ---
 Name:  Nomad Evaluation
@@ -267,13 +244,12 @@ Name:  Scheduling Workers
 All Servers run Scheduling Workers
 * One Scheduler per CPU core by default
 * Four Default Schedulers Available
-    * Service Scheduler optimized for long-lived services
-    * Batch Scheduler for fast placement of batch jobs
-    * System Scheduler for jobs to run on every node
-    * Core Scheduler for Internal Purposes Only
+    * .bold[Service] Scheduler optimized for long-lived services
+    * .bold[Batch] Scheduler for fast placement of batch jobs
+    * .bold[System] Scheduler for jobs to run on every node
 
 ???
-The Scheduling of the job is really the work that all sever nodes perform.  By default, each server node runs one scheduler per CPU core.  Depending on the job at hand, the Server chooses the proper scheduler, either for standard services, batch jobs, system level jobs, or internal jobs.
+The Scheduling of the job is really the work that all sever nodes perform.  By default, each server node runs one scheduler per CPU core.  Depending on the job at hand, the Server chooses the proper scheduler, either for standard services, batch jobs, or system level jobs.
 
 What if two server nodes pick off the same evaluation/job?  We'll get to that later.
 
@@ -283,7 +259,7 @@ Name:  Scheduler Function Part 2
 Now that the Scheduler has the job, let's look at what the it does...
 .smaller[
 1.  Identify available resources/nodes to run the job
-2.  Rank resources based on bin packing and existing tasks/jobs
+2.  Rank nodes based on bin packing and existing tasks/jobs
 3.  Select highest ranking node, and create allocation plan
 4.  Submit allocation plan to leader
 ]
@@ -316,17 +292,17 @@ Name:  End to End Flow
 ![:scale 90%](images/Nomad_Overall_Flow.png)
 
 ---
-Name:  A Focus on Priority
-# Let's Talk Priority
+Name:  Job Priority
+# Job Priority
 Every Scheduler, Planner, Program Managear, deals with struggling priorities.
 .bold[Nomad] is no different - Priority is processed during evaluation and planning
 .smaller[
 * Every job has an associated Priority
-* Priority ranges from 1-100 - higher number = higher priority
+* Priority ranges from 1-100
+* Higher number = higher priority
 ]
 What if higher priority jobs are scheduled?
 
-.larger.bold[PREEMPTION]
 
 ???
 We all struggle with priority.  Nomad supports priority configuration with every Job, from 1 to 100.  The higher the number, the higher the priority.  How does Nomad deal with the inevitable situation where a higher priority job is scheduled and resources are limited?  Preemption!
@@ -358,108 +334,58 @@ With Preemption
 Without any sort of preemption, jobs are evaluated and allocated as they are delivered to the evaluation broker.  If resources aren't avialable, any evaluations will be stuck in pending state until resources become available.  With preemption, Nomad continues to perform the evaluations and will evict lowest priority jobs if necessary.  Every 'plan' that is executed highlights any preemption actions necessary.
 
 ---
-Name:  How Preemption Works
-# Preemption Details
+name: Nomad within HashiCorp
+class: title, shelf, no-footer, fullbleed
+background-image: url(https://hashicorp.github.io/field-workshops-assets/assets/bkgs/HashiCorp-Title-bkg.jpeg)
+count: false
 
-Need to add the System Alerting allocation, but there's no room!
+# Nomad Integrations
+## The HashiCorp Ecosystem
+
+![:scale 15%](https://hashicorp.github.io/field-workshops-assets/assets/logos/logo_nomad.png)
+
+???
+Nomad integrates well with other HashiCorp products.  We're just going to touch on teh functionality here.
+
+---
+name: Nomad and HashiCorp
+# Nomad and
+
+???
+Of course Terraform offers a provider for Nomad configuration and provisioning, but Nomad also works with both Consul and Vault.
+
+---
+name:  Nomad and Consul
+# Connecting Nomad with Consul
 
 .left-side[
-  ![:scale 60%](images/SystemAlerting.png)
+.smaller[
+* Automatic Clustering for Servers and Clients
+* Service Discovery for Tasks and Jobs
+* Dynamic Configuration for applications
+* Secure communication between jobs and task groups using Consul Connect
 ]
+]
+
 .right-side[
-  ![:scale 100%](images/FullCluster.png)
+![:scale 100%](https://www.nomadproject.io/assets/images/nomad_reference_diagram-72c969e0.png)
 ]
 
 ???
-Let's run through a quick example of how preemption works.  Here we have a Nomad cluster with a few allocations in an analytics solution.  Allocations are all happy, and now we have a new job added to the system for System Alerting.  We have enough CPU, and plenty of Hard Drive, but we are at the memory limit.  No room at the inn for our System Alerting process.  Without Preemption, that's where we would stop. But we have preemption, so we'll continue
+Using Consul's Service discovery, Nomad Servers and Clients can automatically find each other within the network, minimizing configuration and being more address-flexible.
+Service Discovery can be used for more than just Nomad nodes.  As any orchestration or scheduling system operates, the mapping of services to nodes can change dynamically.  Using Consul enables application serivce nodes to be automatically discoverable within the cluster
+Using Consul Template, and the Nomad Template stanza, configuration files can be dynamically created utilizing environment variables or even Vault secrets. This is a very advanced topic.
+Consul Connect can even be used to secure communication between services deployed in public or private clouds.
 
 ---
-Name:  How Preemption Works 2
-# Preemption Details 2
+name:  Nomad and Vault
+# Security Nomad with Vault
 
-One of the Business Reporting allocations needs to go!
-.left-side[
-  ![:scale 100%](images/EvictBusinessAlert1.png)
-]
-.right-side[
-  ![:scale 100%](images/AddSystemAlert1.png)
-]
+* Generate Nomad API tokens on demand securing access to the Nomad Cluster
+* Create and Distribute Vault tokens to be used by Tasks and Jobs
+* Enable dynamic secrets for any services within the Nomad Cluster
 
 ???
-With Preemption, Nomad realizes that there are lower priority allocations that can be evicted.  So if we are adding one System Alerting job, we evict one Business Reporting Job.  The Business Reporting job has the lowest priority, so it gets evicted first.  But what happens if we have to add two more System Alerting allocations?
-
----
-Name:  How Preemption Works 3
-# Preemption Details 3
-
-More System Alerting means more eviction. Log Collection isn't a candidate - priority delta < 10
-
-.left-side[
-  ![:scale 100%](images/EvictBusinessAlert2.png)
-]
-.right-side[
-  ![:scale 100%](images/AddSystemAlert2.png)
-]
-
-
-???
-If we add two more Sytem Alerting allocations, we need to bump a Batch Analytics Allocation as well. Evicting the Log Collection allocation would be sufficient, however, the Batch Analytics Allocation has a lower priority.  Additionally, as the priority difference between System Alerting and Log Collection is less than 10, the Log Collection allocation isn't a candidate for preemption with respect to System Alerting.
-
-
-
-
-
-
----
-???
-
-Nomad doeas a lot for auotmatic discovery of servers, and client discovery of servers.  OThere are no strict requirements on the saervers coming or going, so if a server fails it can be replaced without much effort.  Wouldn't it be nice if the new server could be auto discovered, and auto discover, the cluster using Consul service discovery?
-
-
-If an entire region level server cluster fails, clients can still submit jobs to another region - multi-region federation
-
-Servers can be manually join in a cluster, once one of the servers is up and ready (bootstrapped)
-
-Bootstrap the cluster using Consul - also get service availabilty through consul
-
-Federation
-Need RPC and Serf across regions
-Join the servers by pointing to another region - another good use for Consul
-Once regions are joined, Gossip enables discovery of other servers
-
-
----
-???
-
-Clusters have 3-5 server nodes, required for consensus protocol to identify a server.  Leader elected by server nodes through consensus, using Raft.  3 Server nodes can sustain a single failure.  5 Server nodes can sustain two failures.
-
-Transactions recorded at the server are durable - written to majority of servers before acknowledged.
-
-Each Cluster belongs in region, although a region could cross multiple data centers.
-
-Servers in each region are part of a single consensus group, so there is an elected leader in that group.
-consensus provides leader election and durable state replication
-
-Servers participate in Gossip protocol for discovery.  Within a single region, Servers use Gossip to discover eachother and participate in Consensus
-Gossip does simple clustering and multi-region federation
-
-
-when an agent initializes, it reaches out to the configured servers, either address, FQDN, or preferrably using Consul service discovery
-Nomad with Consul
-Nomad doeas a lot for auotmatic discovery of servers, and client discovery of servers.  OThere are no strict requirements on the saervers coming or going, so if a server fails it can be replaced without much effort.  Wouldn't it be nice if the new server could be auto discovered, and auto discover, the cluster using Consul service discovery?
-
-ACL tokens, policies, and Sentinel policies are shared among regions.  Data is not shared across regions
-
-If an entire region level server cluster fails, clients can still submit jobs to another region - multi-region federation
-
-Servers can be manually join in a cluster, once one of the servers is up and ready (bootstrapped)
-
-Bootstrap the cluster using Consul - also get service availabilty through consul
-
-Federation
-Need RPC and Serf across regions
-Join the servers by pointing to another region - another good use for Consul
-Once regions are joined, Gossip enables discovery of other servers
-
+Vault provides a great deal of security features, and bringing them into Nomad extends your security portfolio to the microservices domain.  For access to the Nomad Cluster, Vault can provide authentication through the Nomad Secrets Engine.  Additionally, Vault can create and distribute tokens to be used by tasks and jobs to access external services.  Furthermore,  services within the Nomad cluster can utilize Vault to create dynamic credentials for service clients.
 
 
