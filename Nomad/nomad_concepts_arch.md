@@ -132,10 +132,10 @@ name:  Nomad Cluster Leader Election and Viability
 
 .smaller[
 * Servers race to claim candidacy
-* Server 2 announced first, asked for votea
-* Server 1 heard server 2 first, and voted for server 2
-* Server 3 lost, becomes follower
-* Server 1 becomes the elected leader of the cluster
+    * Server 2 announced first, asked for vote
+* Server 1 heard server 2 first
+    * Votes for server 2
+* Server 3 loses vote, becomes follower, Server 1 wins and becomes Leader
 ]
 
 .smaller.center[3 Servers can sustain 1 Failure, 5 servers can sustain 2 failures]
@@ -333,14 +333,15 @@ Name:  End to End Flow
 ---
 Name:  Job Priority
 # Job Priority
-Every Scheduler, Planner, Program Manager, deals with struggling priorities.
-**Nomad** is no different - Priority is processed during evaluation and planning
+* Every Scheduler, Planner, Program Manager, deals with struggling priorities.
+* **Nomad** is no different - Priority is processed during evaluation and planning
 .smaller[
 * Every job has an associated Priority
 * Priority ranges from 1-100
 * Higher number = higher priority
 ]
-What if higher priority jobs are scheduled?
+
+.center[What if higher priority jobs are scheduled?]
 
 
 ???
@@ -351,7 +352,7 @@ What if higher priority jobs are scheduled?
 ---
 Name:  Preemption
 # Preemption
-Preemption allows Nomad to adjust resource allocations based on Job priority.
+.center[Preemption allows Nomad to adjust resource allocations based on Job priority.]
 .smaller[
 | Without Preemption            | With Preemption                  |
 |-------------------------------|-------------------------------------------------|
@@ -404,7 +405,7 @@ name:  Nomad and Vault
 * Create and Distribute Vault tokens to be used by Tasks
 * Nomad tasks retrieve Secrets from Vault
 * Tasks access external services through short-lived credentials provided by Vault
-* Utilizes Vault's Nomad Secrets Engine (https://www.vaultproject.io/docs/secrets/nomad/index.html)
+* Tasks can also retrieve Nomad API tokens using Vault's  [Nomad Secrets Engine](https://www.vaultproject.io/docs/secrets/nomad/index.html)
 
 ???
 -  Nomad's integration with Vault allows Vault tokens to be used by Nomad Tasks
