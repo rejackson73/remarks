@@ -186,12 +186,13 @@ Name:  Nomad Layout and Comms
 # Nomad Communications
 ![NomadArchitectureRegion](https://www.nomadproject.io/assets/images/nomad-architecture-region-a5b20915.png)
 
+.smaller[
 * 3-5 Server Nodes
 * The Leader Replicates to Followers
 * Followers forward Client Data and Requests to Leader
 * Servers send Allocations to clients
 * Clients Communicate with all Servers over RPC
-
+]
 
 ???
 -  Within the Server Cluster, we have a Leader, and we have Followers.
