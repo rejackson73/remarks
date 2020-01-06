@@ -304,14 +304,12 @@ Now that the Scheduler has the job, let's look at what the it does...
 
 ---
 class: img-right
-
 Name:  Plan Queue Processing
 # Plan Queue Processing
-
-![:scale 60%](images/Queue_Processing.png)
+![QueueProcessing](images/Queue_Processing.png)
 
 Back to the leader now...
-.smaller.[
+.smaller[
 5.  Evaluate all submitted allocation plans
 6.  Accept, reject, or partially reject the plan
 7.  Return response to Scheduler for implementation, rescheduling, or termination
