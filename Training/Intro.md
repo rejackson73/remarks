@@ -14,8 +14,10 @@ Quick slide deck describing how we are using Instruqt and Remark
 ---
 name:  Slide Deck
 # Follow along
-.center[]
-But don't look ahead
+.center[(https://git.io/JvtEs)]
+.center[But don't look ahead!]
+
+.center[Content Source (https://git.io/JvtEc)]
 
 ---
 class:
